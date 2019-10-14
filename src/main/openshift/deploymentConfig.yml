@@ -1,0 +1,74 @@
+#oc create -f @project.build.directory@/openshift/deploymentConfig.yml
+
+kind: "DeploymentConfig"
+apiVersion: "v1"
+metadata:
+  name: "@project.artifactId@"
+spec:
+  template:
+    metadata:
+      labels:
+        name: "@project.artifactId@"
+    spec:
+      containers:
+        - name: "multicontainer-server"
+          image: "@docker.remote.registry@/multicontainer-server"
+          volumeMounts:
+            - mountPath: /app/config
+              name: multicontainer-server-config-volume
+          resources:
+            limits:
+              #cpu: 600m
+              memory: 200Mi
+            requests:
+              #cpu: 600m
+              memory: 200Mi
+        - name: "multicontainer-client"
+          image: "@docker.remote.registry@/multicontainer-client"
+          volumeMounts:
+            - mountPath: /app/config
+              name: multicontainer-client-config-volume
+          resources:
+            limits:
+              #cpu: 600m
+              memory: 200Mi
+            requests:
+              #cpu: 600m
+              memory: 200Mi
+      volumes:
+        - configMap:
+            defaultMode: 420
+            name: multicontainer-client-config
+            items:
+              - key: application.yaml
+                path: application.yaml
+          name: multicontainer-client-config-volume
+        - configMap:
+            defaultMode: 420
+            name: multicontainer-server-config
+            items:
+              - key: application.yaml
+                path: application.yaml
+          name: multicontainer-server-config-volume
+  replicas: 1
+  triggers:
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+          - multicontainer-server
+        from:
+          kind: ImageStreamTag
+          name: 'multicontainer-server:@project.version@'
+      type: ImageChange
+    - imageChangeParams:
+        automatic: true
+        containerNames:
+          - multicontainer-client
+        from:
+          kind: ImageStreamTag
+          name: 'multicontainer-client:@project.version@'
+      type: ImageChange
+    - type: ConfigChange
+  strategy:
+    type: "Rolling"
+  paused: false
